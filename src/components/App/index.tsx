@@ -143,27 +143,23 @@ export default class App extends React.Component {
   }
 
   announced(v:any) {
-    if(v.username !== this.state.auth.username) {
-      dispatch('announce', {
-        username: v.username,
-        timestamp: v.timestamp
-      })
-      this.state.lastAnnounce = v.timestamp
-    }
+    dispatch('announce', {
+      username: v.username,
+      timestamp: v.timestamp
+    })
+    this.state.lastAnnounce = v.timestamp
   }
 
   initing(v:any) {
-    Object.values(v).map((ee: any) =>
+    Object.values(v).map((ee: any) => {
       path(this.gun, ee).once((vv: any, kk: any) => {
-        if (v.username !== this.state.auth.username) {
-          dispatch('announce', {
-            username: v.username,
-            timestamp: v.timestamp
-          })
-          this.state.lastChat = v.timestamp
-        }
-      )
-    )
+        dispatch('announce', {
+          username: v.username,
+          timestamp: v.timestamp
+        })
+        this.state.lastChat = v.timestamp
+      })
+    })
   }
 
   handleAnnounce(node: any, valu: any, key: any) {
@@ -190,15 +186,13 @@ export default class App extends React.Component {
   chiniting(v:any) {
     Object.values(v).map((ee: any) =>
       path(this.gun, ee).once((vv: any, kk: any) => {
-        if (v.username !== this.state.auth.username) {
-          dispatch('chat_message', {
-            username: v.username,
-            timestamp: v.timestamp,
-            message: v.chat
-          })
-          this.state.lastChat = v.timestamp
-        }
-      )
+        dispatch('chat_message', {
+          username: v.username,
+          timestamp: v.timestamp,
+          message: v.chat
+        })
+        this.state.lastChat = v.timestamp
+      })
     )
   }
 
@@ -245,7 +239,7 @@ export default class App extends React.Component {
   render() {
     return (
     <div className="App">
-      <Messenger />
+      <Messenger iam={this.state.auth.username} />
     </div>
     )
   }

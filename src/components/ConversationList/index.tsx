@@ -4,6 +4,7 @@ import ConversationListItem from '../ConversationListItem'
 import Toolbar from '../Toolbar'
 import ToolbarButton from '../ToolbarButton'
 import axios from 'axios'
+import moment from 'moment'
 
 import './ConversationList.css'
 
@@ -14,14 +15,15 @@ export default function ConversationList (props) {
   }, [])
 
   const setupAnnounceListeners = () => {
-    document.addEventListener('chat_message',
+    document.addEventListener('announce',
       (e:any) => {
+        const curConversations = conversations.filter(e => e.username !== e.detail.username)
         const msg = {
-          photo: '',
-          name: `${e.detail.username}`,
-          text: ''
+          photo: 'user.jpg',
+          name: `${e.detail.username.substring(0,8)}`,
+          text: moment(e.detail.timestamp).format('LLLL')
         }
-        setConversations([...conversations, msg])
+        setConversations([...curConversations, msg])
       }
     )
   }
