@@ -91,7 +91,7 @@ export default function MessageList (props) {
   return (
     <div className='message-list'>
       <Toolbar
-        title='Conversation Title'
+        title={`logged in as ${props.iam.substring(0, 8)}`}
         rightItems={[
           <ToolbarButton key='info' icon='ion-ios-information-circle-outline' />,
           <ToolbarButton key='video' icon='ion-ios-videocam' />,

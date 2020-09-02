@@ -152,7 +152,7 @@ export default class App extends React.Component {
 
   initing(v:any) {
     Object.values(v).map((ee: any) => {
-      path(this.gun, ee).once((vv: any, kk: any) => {
+      path(this.gun, ee['#']).once((vv: any, kk: any) => {
         dispatch('announce', {
           username: v.username,
           timestamp: v.timestamp
@@ -185,7 +185,7 @@ export default class App extends React.Component {
 
   chiniting(v:any) {
     Object.values(v).map((ee: any) =>
-      path(this.gun, ee).once((vv: any, kk: any) => {
+      path(this.gun, ee['#']).once((vv: any, kk: any) => {
         dispatch('chat_message', {
           username: v.username,
           timestamp: v.timestamp,

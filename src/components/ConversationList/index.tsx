@@ -8,46 +8,55 @@ import moment from 'moment'
 
 import './ConversationList.css'
 
-export default function ConversationList (props) {
-  const [conversations, setConversations] = useState([])
-  useEffect(() => {
-    setupAnnounceListeners()
-  }, [])
+export default class ConversationList extends React.Component {
+  state = {
+    conversations : []
+  }
 
-  const setupAnnounceListeners = () => {
+  constructor(props) {
+    super(props)
+  }
+
+  componentDidMount() {
+    const self = this
     document.addEventListener('announce',
-      (e:any) => {
-        const curConversations = conversations.filter(e => e.username !== e.detail.username)
-        const msg = {
+      (ev:any) => {
+        const curConversations = self.state.conversations.filter(
+          e => e.username !==  ev.detail.username
+        )
+        self.state.conversations = [...curConversations, {
           photo: 'user.jpg',
-          name: `${e.detail.username.substring(0,8)}`,
-          text: moment(e.detail.timestamp).format('LLLL')
-        }
-        setConversations([...curConversations, msg])
+          username: ev.detail.username,
+          name: `${ev.detail.username.substring(0,8)}`,
+          text: moment(ev.detail.timestamp).format('LLLL'),
+          timestamp: ev.detail.timestamp
+        }]
       }
     )
   }
 
-  return (
-    <div className='conversation-list'>
-      <Toolbar
-        title='Messenger'
-        leftItems={[
-          <ToolbarButton key='cog' icon='ion-ios-cog' />
-        ]}
-        rightItems={[
-          <ToolbarButton key='add' icon='ion-ios-add-circle-outline' />
-        ]}
-      />
-      <ConversationSearch />
-      {
-        conversations.map(conversation =>
-          <ConversationListItem
-            key={conversation.name}
-            data={conversation}
-          />
-        )
-      }
-    </div>
-  )
+  render() {
+    return (
+      <div className='conversation-list'>
+        <Toolbar
+          title='Messenger'
+          leftItems={[
+            <ToolbarButton key='cog' icon='ion-ios-cog' />
+          ]}
+          rightItems={[
+            <ToolbarButton key='add' icon='ion-ios-add-circle-outline' />
+          ]}
+        />
+        <ConversationSearch />
+        {
+          this.state.conversations.map(conversation =>
+            <ConversationListItem
+              key={conversation.name}
+              data={conversation}
+            />
+          )
+        }
+      </div>
+    )
+  }
 }
