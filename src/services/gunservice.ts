@@ -18,7 +18,6 @@ const peers = [
 export default class GunService {
   state: any
   constructor(props: any) {
-    console.log("starting gun")
     this.state = Object.assign({
       gun: new Gun(peers),
       user: null,
@@ -27,25 +26,18 @@ export default class GunService {
     if (this.state.onInit) {
       this.state.onInit(this.state.gun)
     }
-    console.log("creating user")
     this.state.user = this.state.gun.user()
     if (this.state.auth) {
-      console.log("we have auth")
       const a = this.state.auth
       if (a.create) {
-        console.log("we register")
         const username = a.username || randomstring.generate()
         const password = a.password || randomstring.generate()
-        this.state.auth = Object.assign(
-          {
-            username,
-            password
-          },
-          this.state.auth
-        )
+        this.state.auth = Object.assign({
+          username,
+          password
+        }, this.state.auth )
         this.state.user.create(username, password)
       } else {
-        console.log("we login")
         const username = a.username
         const password = a.password
         this.state.auth = Object.assign({}, this.state.auth)
@@ -55,7 +47,6 @@ export default class GunService {
         this.state.user.auth(username, password)
       }
       this.state.gun.on("auth", () => {
-        console.log("we get auth")
         if (this.state.onCreate && this.state.auth.create) {
           this.state.onCreate(this.state.user, this.state.auth)
         } else if (this.state.onAuth) {
@@ -88,16 +79,8 @@ export default class GunService {
     })
   }
 
-  get is() {
-    return this.state.user.is
-  }
-  get userGun() {
-    return this.state.user.is ? this.state.user : this.state.gun
-  }
-  get user() {
-    return this.state.user.is ? this.state.user : null
-  }
-  get gun() {
-    return this.state.gun
-  }
+  get is() { return this.state.user.is }
+  get userGun() { return this.state.user.is ? this.state.user : this.state.gun }
+  get user() { return this.state.user.is ? this.state.user : null }
+  get gun() { return this.state.gun }
 }

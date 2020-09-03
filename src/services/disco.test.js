@@ -1,7 +1,5 @@
-import DiscoPeer from './disco'
+const DiscoPeer = require( './disco' )
 
-var disco
 it('lets us create disco without crashing', () => {
-
-  disco = new DiscoPeer()
+  var disco = disco = new DiscoPeer()
 })

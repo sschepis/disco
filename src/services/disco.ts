@@ -30,13 +30,18 @@ export default class DiscoPeer {
     onAuth: any,
     onCreate: any,
     lastAnnounce: any,
-    lastChat: any
+    lastChat: any,
+    events: {
+      onReady: any,
+      onObserving: any,
+      onAnnounce: any
+    }
   }
   gun: any
   userGun: any
   //
   static defaults(that: any) {
-    const rnd = randomstring.generate()
+    const rnd = 'OBEY'//randomstring.generate()
     var auth = window.localStorage.getItem('auth')
     auth = auth
       ? JSON.parse(auth)
@@ -74,7 +79,8 @@ export default class DiscoPeer {
       onEmit:   (opath: any, node: any, valu: any, key: any) => that.handleEmit(opath, node, valu, key),
       onObserving: (path: any, obj: any) => that.handleObserving(path, obj),
       onAuth:   (user: any, auth: any) => that.auth(user, auth, false),
-      onCreate: (user: any, auth: any) => that.auth(user, auth, true)
+      onCreate: (user: any, auth: any) => that.auth(user, auth, true),
+      events: {}
     }
   }
   props
@@ -93,8 +99,9 @@ export default class DiscoPeer {
   constructor(props: any) {
     log('constructor')
     this.props = props
-    this.state = Object.assign(DiscoPeer.defaults(this), {})
+    this.state = Object.assign(DiscoPeer.defaults(this), props)
     this.gunService = new GunService(this.state)
+    this.handleObserving = this.handleObserving.bind(this)
   }
 
   //
@@ -108,9 +115,8 @@ export default class DiscoPeer {
     this.userGun = user
     if (newUser) {
       delete this.state.auth.create
-      this.gun
-        .path(`${this.state.rootNode}/users`)
-        .set(this.state.auth)
+      const usersNode = this.gun.path(`${this.state.rootNode}/users`)
+      usersNode.set(this.state.auth)
         .once((v:any, k:any) => {
           this.state.auth.hid = k
           this.gun.path(`${this.state.rootNode}/users/${k}`).put(this.state.auth)
@@ -139,13 +145,16 @@ export default class DiscoPeer {
       `${uPath}/settings`,
       `${uPath}/chats`
     ]
-    this.state.observablePaths = Object.assign(this.state.observablePaths, obs)
+    this.state.observablePaths = this.state.observablePaths.concat(obs)
     this.gunService.observe(obs)
   }
 
   // event
   ready() {
     log('ready')
+    if(this.state.events.onReady) {
+      this.state.events.onReady()
+    }
     this.announce()
   }
 
@@ -157,6 +166,9 @@ export default class DiscoPeer {
       timestamp: Date.now()
     }
     this.gun.path(this.state.observablePaths[0]).set(ann)
+    if(this.state.events.onAnnounce) {
+      this.state.events.onAnnounce()
+    }
   }
 
   //
@@ -194,20 +206,23 @@ export default class DiscoPeer {
       log('handleObserving', `observing ${this.state.observablePaths[3]}`)
     }
     if (path === this.state.observablePaths[4]) {
-      this.state.paths.friends = obj
+      this.state.paths.user.friends = obj
       log('handleObserving', `observing ${this.state.observablePaths[4]}`)
     }
     if (path === this.state.observablePaths[5]) {
-      this.state.paths.public = obj
+      this.state.paths.user.public = obj
       log('handleObserving', `observing ${this.state.observablePaths[5]}`)
     }
     if (path === this.state.observablePaths[6]) {
-      this.state.paths.settings = obj
+      this.state.paths.user.settings = obj
       log('handleObserving', `observing ${this.state.observablePaths[6]}`)
     }
     if (path === this.state.observablePaths[7]) {
-      this.state.paths.chats = obj
-      log('handleObserving', `observing ${this.state.observablePaths[6]}`)
+      this.state.paths.user.chats = obj
+      log('handleObserving', `observing ${this.state.observablePaths[7]}`)
+    }
+    if(this.state.events.onObserving) {
+      this.state.events.onObserving(path)
     }
   }
 
@@ -266,20 +281,45 @@ export default class DiscoPeer {
 
   //
   handleChats(node: any, valu: any, key: any) {
-    log('handleChats')
+    // log('handleChats')
+    // node.map().once((v: any, k: any) => {
+    //   if(v.username) { this.handleChat(v)
+    //   } else { this.handleChatInit(v) }
+    // })
+  }
+
+  //
+  handleFriends(node: any, valu: any, key: any) {
+    log('handleFriends')
     node.map().once((v: any, k: any) => {
-      if(v.username) { this.handleChat(v)
-      } else { this.handleChatInit(v) }
+      if(v.username) { this.handleFriend(node, valu, key)
+      } else { this.handleFriendInit(node, valu, key) }
     })
   }
 
   //
+  handleFriendInit(node: any, valu: any, key: any) {
+    log('handleFriendInit')
+  }
+
+  //
+  handleFriend(node: any, valu: any, key: any) {
+    log('handleFriend', valu)
+  }
+
+  //
   handleEmit(opath: any, node: any, valu: any, key: any) {
+    // announce
     if (opath === this.state.observablePaths[0]) {
       this.handleAnnounces(node, valu, key)
     }
+    // global chat (TODO: remove this. )
     if (opath === this.state.observablePaths[1]) {
       this.handleChats(node, valu, key)
+    }
+    // user friends. observed to receive friend requests
+    if (opath === this.state.observablePaths[4]) {
+      this.handleFriends(node, valu, key)
     }
   }
 
@@ -325,7 +365,7 @@ export default class DiscoPeer {
           }) // else this person is not our friend
         }
       })
-    })
+    })x
   }
 
   async searchGroups() {
@@ -336,70 +376,53 @@ export default class DiscoPeer {
 
   }
 
-  async addFriend(friend) {
-    const p = new Promise((resolve, reject) => {
-      const friendBase = this.state.paths.friends
-      friendBase.get(friend).once((v, k) => {
-        if(!v) {
-          friendBase.get(friend).put({
-            timestamp: Date.now(),
-            status: 'pending',
-            participants: [this.state.paths.hid, friend]
-          })
-        }
-        resolve()
+  addFriend(friend, callback) {
+    log('addFriend', `${friend}`)
+    const friendBase = this.state.paths.user.friends
+    friendBase.get(friend).once((v) => {
+      if(v) { return callback() }
+      friendBase.set({
+        timestamp: Date.now(),
+        status: 'pending'
+      }).once((vv, kk) => {
+        const participantsBase = friendBase.get(kk).get('participants')
+        [this.state.paths.hid, friend].forEach((e) => participantsBase.set(e))
       })
-    }
-    return p
+      if(callback) { callback() }
+    })
   }
 
-  async getFriends() {
-    const p = new Promise((resolve, reject) => {
-      const arrOut = []
-      const l = v !== null ? Object.keys(v).length : 0
-      const friendBase = this.state.paths.friends
-      friendBase.map().once((v: any, k: any) => {
-        if(v.status === 'friends') {
-          arrOut.push(v)
-        }
-        if(arrOut.length===l) {
-          resolve(arrOut)
-        }
+  getUsers(callback) {
+    const userBase = this.state.paths.users
+    userBase.once((v: any, k: any) => {
+      if(callback) { callback(null, v) }
+    })
+  }
+
+  getFriends(callback) {
+    const friendsBase = this.state.paths.user.friends
+    friendsBase.once((v: any, k: any) => {
+      if(callback) { callback(null, v) }
+    })
+  }
+
+  getFriendRequests(callback) {
+    const friendsBase = this.state.paths.user.friends
+    friendsBase.once((v: any, k: any) => {
+      if(callback) { callback(null, v) }
+    })
+  }
+
+  approveFriendRequest(friend, callback) {
+    const friendBase = this.state.paths.user.friends.get(friend)
+    friendBase.once((v, k) => {
+      if(v && v.status === 'pending') {
+        v.status = 'friends'
+        friendBase.put(v).on(() => {
+          if(callback) { callback() }
+        })
       }
     })
-    return p
-  }
-
-  async getFriendRequests() {
-    const p = new Promise((resolve, reject) => {
-      const arrOut = []
-      const l = v !== null ? Object.keys(v).length : 0
-      const friendBase = this.state.paths.friends
-
-      friendBase.map().once((v: any, k: any) => {
-        if(v.status === 'pending') {
-          arrOut.push(v)
-        }
-        if(arrOut.length===l) {
-          resolve(arrOut)
-        }
-      })
-    })
-    return p
-  }
-
-  async approveFriendRequest(friendReq) {
-    const p = new Promise((resolve, reject) => {
-      const arrOut = []
-      const friendBase = this.state.paths.friends.get(friendReq)
-      friendBase.once((v, k) => {
-        if(v && v.status === 'pending') {
-          v.status = 'friends'
-          friendBase.put(v).once(() => resolve(true))
-        }
-      })
-    })
-    return p
   }
 
   async removeFriend(friend) {
