@@ -1,3 +1,5 @@
+import { uniqueNamesGenerator, Config, adjectives, colors, animals } from 'unique-names-generator';
+
 import randomstring from 'randomstring'
 import GunService from './gunservice'
 import 'gun/gun'
@@ -48,7 +50,7 @@ export default class DiscoPeer {
       : {
           username: randomstring.generate(),
           password: randomstring.generate(),
-          handle: 'user',
+          handle: DiscoPeer.uniqueName(),
           create: true
         }
     return {
@@ -93,6 +95,15 @@ export default class DiscoPeer {
       DiscoPeer.instance = new DiscoPeer(props)
     }
     return DiscoPeer.instance
+  }
+
+  static uniqueName() {
+    return uniqueNamesGenerator({
+      dictionaries: [adjectives, colors, animals]
+    })
+    .split('_')
+    .map(e => e.charAt(0).toUpperCase() + e.slice(1))
+    .join('')
   }
 
   //
@@ -167,7 +178,7 @@ export default class DiscoPeer {
     }
     this.gun.path(this.state.observablePaths[0]).set(ann)
     if(this.state.events.onAnnounce) {
-      this.state.events.onAnnounce()
+      this.state.events.onAnnounce(ann)
     }
   }
 
@@ -182,6 +193,7 @@ export default class DiscoPeer {
   handleAnnounce(v: any) {
     log('handleAnnounce')
     dispatch('announce', {
+      hid: v.hid,
       username: v.username,
       timestamp: v.timestamp
     })
