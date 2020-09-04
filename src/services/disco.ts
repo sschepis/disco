@@ -43,7 +43,7 @@ export default class DiscoPeer {
   userGun: any
   //
   static defaults(that: any) {
-    const rnd = 'ROGdER'//randomstring.generate()
+    const rnd = 'aaGldEy8dshR'//randomstring.generate()
     var auth = window.localStorage.getItem('auth')
     auth = auth
       ? JSON.parse(auth)
@@ -127,13 +127,20 @@ export default class DiscoPeer {
     if (newUser) {
       delete this.state.auth.create
       const usersNode = this.gun.path(`${this.state.rootNode}/users`)
-      usersNode.set(this.state.auth)
-        .once((v:any, k:any) => {
-          this.state.auth.hid = k
-          this.gun.path(`${this.state.rootNode}/users/${k}`).put(this.state.auth)
-          window.localStorage.setItem('auth', JSON.stringify(this.state.auth))
-          log('auth', `auth saved for ${this.state.auth.username}`)
+      usersNode.set({
+        username: this.state.auth.username,
+        handle: this.state.auth.handle,
+        timestamp: Date.now()
+      })
+      .once((v:any, k:any) => {
+        this.gun.path(`${this.state.rootNode}/users/${k}`).put({
+          username: this.state.auth.username,
+          handle: this.state.auth.handle,
+          timestamp: Date.now()
         })
+        window.localStorage.setItem('auth', JSON.stringify(this.state.auth))
+        log('auth', `auth saved for ${this.state.auth.username}`)
+      })
     } else {
       this.gun
         .path(`${this.state.rootNode}/users/${this.state.auth.hid}`)
@@ -263,8 +270,10 @@ export default class DiscoPeer {
   handleAnnounces(node: any, valu: any, key: any) {
     log('handleAnnounces')
     node.map().once((v: any, k: any) => {
-      if(v.username) { this.handleAnnounce(v)
-      } else { this.handleAnnounceInit(v) }
+      if(v.username) {
+        v.hid = k
+        this.handleAnnounce(v)
+      }
     })
   }
 
@@ -275,6 +284,7 @@ export default class DiscoPeer {
       dispatch('chat_message', {
         username: v.username,
         timestamp: v.timestamp,
+        handle: v.handle,
         message: v.chat
       })
       this.state.lastChat = v.timestamp
@@ -282,41 +292,25 @@ export default class DiscoPeer {
   }
 
   //
-  handleChatInit(v:any) {
-    log('handleChatInit')
-    Object.values(v).map((ee: any) =>
-      this.gun.path(ee['#']).once((vv: any, kk: any) => {
-        dispatch('chat_message', {
-          username: v.username,
-          timestamp: v.timestamp,
-          message: v.chat
-        })
-        this.state.lastChat = v.timestamp
-      })
-    )
-  }
-
-  //
   handleChats(node: any, valu: any, key: any) {
-    // log('handleChats')
-    // node.map().once((v: any, k: any) => {
-    //   if(v.username) { this.handleChat(v)
-    //   } else { this.handleChatInit(v) }
-    // })
+    log('handleChats')
+    node.map().once((v: any, k: any) => {
+      if(v.username) {
+        v.hid = k
+        this.handleChat(v)
+      }
+    })
   }
 
   //
   handleFriends(node: any, valu: any, key: any) {
     log('handleFriends')
     node.map().once((v: any, k: any) => {
-      if(v.username) { this.handleFriend(node, valu, key)
-      } else { this.handleFriendInit(node, valu, key) }
+      if(v.username) {
+        v.hid = k
+        this.handleFriend(node, v, k)
+      }
     })
-  }
-
-  //
-  handleFriendInit(node: any, valu: any, key: any) {
-    log('handleFriendInit')
   }
 
   //
@@ -398,13 +392,15 @@ export default class DiscoPeer {
     const friendBase = this.state.paths.user.friends
     friendBase.get(friend).once((v) => {
       if(v) { return callback() }
-      friendBase.set({
+
+      friendBase.get(friend).put({
         timestamp: Date.now(),
         status: 'pending'
       }).once((vv, kk) => {
-        const participantsBase = friendBase.get(kk).get('participants')
+        const participantsBase = friendBase.get(friend).get('participants')
         [this.state.auth.hid, friend].forEach((e) => participantsBase.set(e))
       })
+
       if(callback) { callback() }
     })
   }
@@ -412,7 +408,10 @@ export default class DiscoPeer {
   getUsers(callback) {
     const userBase = this.state.paths.users
     userBase.once((v: any, k: any) => {
-      if(callback) { callback(null, v) }
+      if(callback && v) {
+        v.hid = k
+        callback(null, v)
+      }
     })
   }
 
@@ -422,7 +421,10 @@ export default class DiscoPeer {
       return
     }
     friendsBase.once((v: any, k: any) => {
-      if(callback) { callback(null, v) }
+      if(callback && v) {
+        v.hid = k
+        callback(null, v)
+      }
     })
   }
 

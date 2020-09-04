@@ -5,6 +5,11 @@ import FriendsList from '../FriendsList';
 import DiscoPeer from '../../services/disco'
 import { Container, Row, Col } from 'react-bootstrap'
 
+// dispatch an event throgh the document
+function dispatch (e:any, p:any = null) {
+  document.dispatchEvent(p ? new CustomEvent(e, { detail: p }) : new Event(e))
+}
+
 
 export default class App extends React.Component {
   static defaults(that: any) {
@@ -24,7 +29,7 @@ export default class App extends React.Component {
     this.addFriend = this.addFriend.bind(this)
 
     this.state.disco = window.disco = new DiscoPeer({
-      rootNode: '76jke',
+      rootNode: '76jkefds',
       events: {
         onReady: () => this.discoReady(),
         onObserving: (path) => this.discoObserving(path),
@@ -43,7 +48,10 @@ export default class App extends React.Component {
     this.setState({selectedUser: user})
   }
 
-  discoReady() {}
+  discoReady() {
+    dispatch('disco_ready')
+  }
+
   discoObserving(path:any) {}
   discoAnnounce() {}
   addFriend(e) {
@@ -65,8 +73,8 @@ export default class App extends React.Component {
         <Row>
           <Col><h2>Users</h2><UserList></UserList></Col>
           <Col><h2>Announces</h2><AnnounceList /></Col>
-          <Col><h2>Confirmed Friends</h2><FriendsList mode={'friends'}/></Col>
-          <Col><h2>Pending Friends</h2><FriendsList mode={'pending'}/></Col>
+          <Col><h2>Confirmed Friends</h2><FriendsList /></Col>
+          {/* <Col><h2>Pending Friends</h2><FriendsList mode={'pending'}/></Col> */}
         </Row>
         <Row>
           <Col><div className={'anntext'}>With <span className='anntext'>{this.state.selectedUser}</span></div></Col>

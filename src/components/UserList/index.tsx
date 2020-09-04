@@ -60,7 +60,7 @@ export default class UserList extends React.Component {
       <div className="user-list">
         <select size={5} onChange={this.handleChange}>
           {this.state.users.map(function(user, index) {
-            return <option key={ index } value={ user.hid }> {user.handle }</option>;
+            return <option key={index} value={user.hid}> {user.handle }</option>;
           })}
         </select>
       </div>

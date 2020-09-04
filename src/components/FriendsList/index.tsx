@@ -22,15 +22,20 @@ export default class FriendsList extends React.Component {
       FriendsList.defaultState(this),
       props
     )
-    window.disco.getFriends((err, usersObj) => {
+    this.displayFriends = this.displayFriends.bind(this)
+    document.addEventListener('disco_ready', () => this.displayFriends())
+  }
+
+  displayFriends() {
+    window.disco.getFriends((err: any, usersObj: any) => {
       if(err || !usersObj || window.disco.state.paths.user.friends) { return }
       var friends = []
       window.disco.state.paths.user.friends.map().on((v, k) => {
-        if(!v.participants) { return }
         if(this.props && this.props.mode && this.props.mode !== 'all') {
           if(this.props.mode !== v.status) { return }
         }
         friends = [{
+          hid: k,
           username: v.username,
           handle: v.handle,
           timestamp: v.timestamp
