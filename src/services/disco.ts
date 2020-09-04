@@ -173,6 +173,7 @@ export default class DiscoPeer {
   announce() {
     log('announce')
     const ann = {
+      hid: this.state.auth.hid,
       username: this.state.auth.username,
       handle: this.state.auth.handle,
       timestamp: Date.now()
@@ -248,7 +249,9 @@ export default class DiscoPeer {
         .path(ee['#'])
         .once((vv: any, kk: any) => {
         dispatch('announce', {
+          hid: v.hid,
           username: v.username,
+          handle: v.handle,
           timestamp: v.timestamp
         })
         this.state.lastChat = v.timestamp
@@ -400,7 +403,7 @@ export default class DiscoPeer {
         status: 'pending'
       }).once((vv, kk) => {
         const participantsBase = friendBase.get(kk).get('participants')
-        [this.state.paths.hid, friend].forEach((e) => participantsBase.set(e))
+        [this.state.auth.hid, friend].forEach((e) => participantsBase.set(e))
       })
       if(callback) { callback() }
     })
@@ -415,13 +418,9 @@ export default class DiscoPeer {
 
   getFriends(callback) {
     const friendsBase = this.state.paths.user.friends
-    friendsBase.once((v: any, k: any) => {
-      if(callback) { callback(null, v) }
-    })
-  }
-
-  getFriendRequests(callback) {
-    const friendsBase = this.state.paths.user.friends
+    if(!friendsBase) {
+      return
+    }
     friendsBase.once((v: any, k: any) => {
       if(callback) { callback(null, v) }
     })

@@ -6,7 +6,8 @@ export default class AnnounceList extends React.Component {
   static defaultState(that: AnnounceList) {
     return {
       announce: [],
-      mounted: false
+      mounted: false,
+      selected: null
     }
   }
   state
@@ -32,18 +33,28 @@ export default class AnnounceList extends React.Component {
       else
         this.state.announce = announce
     })
+    this.handleChange = this.handleChange.bind(this)
   }
 
   componentDidMount() {
     this.state.mounted = true
   }
 
+  handleChange(event) {
+    this.setState({hid: event.target.value});
+    this.dispatch('user_selected', event.target.value)
+  }
+
+  dispatch (e:any, p:any = null) {
+    document.dispatchEvent(p ? new CustomEvent(e, { detail: p }) : new Event(e))
+  }
+
   render() {
     return (
       <div className="announce-list">
-        <select size={5}>
+        <select size={5} onChange={this.handleChange}>
           {this.state.announce.map(function(user, index){
-            return <option key={ index } value={ user.hid }> {user.handle }</option>;
+            return <option value={ user.hid }> {user.handle }</option>
           })}
         </select>
       </div>

@@ -39,15 +39,26 @@ export default class UserList extends React.Component {
       if(!this.state.mounted) this.state.users = users
       else this.setState({users})
     })
+    this.handleChange = this.handleChange.bind(this)
+  }
+
+  handleChange(event) {
+    this.setState({hid: event.target.value});
+    this.dispatch('user_selected', event.target.value)
+  }
+
+  dispatch (e:any, p:any = null) {
+    document.dispatchEvent(p ? new CustomEvent(e, { detail: p }) : new Event(e))
   }
 
   componentDidMount() {
     this.state.mounted = true
   }
+
   render() {
     return (
       <div className="user-list">
-        <select size={5}>
+        <select size={5} onChange={this.handleChange}>
           {this.state.users.map(function(user, index) {
             return <option key={ index } value={ user.hid }> {user.handle }</option>;
           })}

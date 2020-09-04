@@ -1,4 +1,4 @@
-.user-list {
+.friends-list {
   padding: 0;
   align-items: center;
   background: white;
@@ -7,9 +7,18 @@
   height: 300px;
 }
 
-.user-list select {
+.friends-list select {
   width:  100%;
   height: 100%;
+}
+
+button {
+  margin-right:10px;
+}
+
+.anntext {
+  font-size : 16pt;
+  line-height: 36pt;
 }
 
 @supports (backdrop-filter: blur(20px)) {
