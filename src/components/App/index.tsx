@@ -21,6 +21,7 @@ export default class App extends React.Component {
     this.discoAnnounce = this.discoAnnounce.bind(this)
     this.discoObserving = this.discoObserving.bind(this)
     this.discoReady = this.discoReady.bind(this)
+    this.addFriend = this.addFriend.bind(this)
 
     this.state.disco = window.disco = new DiscoPeer({
       rootNode: '76jke',
@@ -45,7 +46,11 @@ export default class App extends React.Component {
   discoReady() {}
   discoObserving(path:any) {}
   discoAnnounce() {}
-  addFriend() {}
+  addFriend(e) {
+    window.disco.addFriend(this.state.selectedUser, () {
+      console.log('addFriend', 'friend added')
+    })
+  }
   removeFriend() {}
   confirmFriend() {}
 
