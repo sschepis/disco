@@ -18,7 +18,6 @@ export default class UserList extends React.Component {
       UserList.defaultState(this),
       props
     )
-
     window.disco.getUsers((err, usersObj) => {
       if(err || !usersObj) {
         return
@@ -33,13 +32,12 @@ export default class UserList extends React.Component {
         users = [...users, {
           hid: v.hid,
           username: v.username,
-          password: v.password,
+          handle: v.handle,
           timestamp: v.timestamp
         }]
       })
-      this.state.users = users
-      if(this.state.mounted) this.setState({})
-      console.log('SETTING')
+      if(!this.state.mounted) this.state.users = users
+      else this.setState({users})
     })
   }
 
@@ -51,7 +49,7 @@ export default class UserList extends React.Component {
       <div className="user-list">
         <select size={5}>
           {this.state.users.map(function(user, index) {
-            return <option key={ index } value={ user.hid }> {user.username }</option>;
+            return <option key={ index } value={ user.hid }> {user.handle }</option>;
           })}
         </select>
       </div>

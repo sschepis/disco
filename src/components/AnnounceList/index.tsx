@@ -17,15 +17,18 @@ export default class AnnounceList extends React.Component {
       props
     )
     window.disco.state.paths.announce.map().on((ann, k) => {
-      var announce = this.state.announce.filter(e => e.hid !== ann.hid)
+      var announce = this.state.announce
       announce = [{
         username: ann.username,
         hid: ann.hid,
         handle: ann.handle,
         timestamp: ann.timestamp
       }, ...announce]
+      if(announce.length > 10) {
+        announce.pop()
+      }
       if(this.state.mounted)
-        this.setState(announce)
+        this.setState({announce})
       else
         this.state.announce = announce
     })
@@ -40,7 +43,7 @@ export default class AnnounceList extends React.Component {
       <div className="announce-list">
         <select size={5}>
           {this.state.announce.map(function(user, index){
-            return <option key={ index } value={ user.hid }> {user.username }</option>;
+            return <option key={ index } value={ user.hid }> {user.handle }</option>;
           })}
         </select>
       </div>

@@ -43,7 +43,7 @@ export default class DiscoPeer {
   userGun: any
   //
   static defaults(that: any) {
-    const rnd = 'OBEY'//randomstring.generate()
+    const rnd = 'ROGdER'//randomstring.generate()
     var auth = window.localStorage.getItem('auth')
     auth = auth
       ? JSON.parse(auth)
@@ -174,6 +174,7 @@ export default class DiscoPeer {
     log('announce')
     const ann = {
       username: this.state.auth.username,
+      handle: this.state.auth.handle,
       timestamp: Date.now()
     }
     this.gun.path(this.state.observablePaths[0]).set(ann)
@@ -195,6 +196,7 @@ export default class DiscoPeer {
     dispatch('announce', {
       hid: v.hid,
       username: v.username,
+      handle: v.handle,
       timestamp: v.timestamp
     })
     this.state.lastAnnounce = v.timestamp

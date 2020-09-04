@@ -41,10 +41,10 @@ export default class App extends React.Component {
   }
 
   render() {
-    var user = ''
+    var user = window.disco.state.auth ? window.disco.state.auth.handle: 'nobody'
     return (
     <div className="App">
-      <div style={{width:'100%', height:'50px', textAlign:'center'}}>logged in as {window.disco.state.auth ? window.disco.state.auth.handle: 'nobody'}</div>
+      <div style={{width:'100%', height:'50px', textAlign:'center'}}>logged in as {user}</div>
       <UserList /><AnnounceList />
     </div>
     )
