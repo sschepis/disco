@@ -83,7 +83,7 @@ export default class DiscoPeer {
       },
       observablePaths: {
         announcePath: `${that.props.rootNode || rnd}/announce`,
-        chatPath: `${that.props.rootNode || rnd}/chat`,
+        chatsPath: `${that.props.rootNode || rnd}/chats`,
         usersPath: `${that.props.rootNode || rnd}/users`,
         groupsPath: `${that.props.rootNode || rnd}/groups`
       },
@@ -228,9 +228,9 @@ export default class DiscoPeer {
       this.state.paths.announce = obj
       log('handleObserving', `observing ${this.state.observablePaths.announcePath}`)
     }
-    if (path === this.state.observablePaths.chatPath) {
-      this.state.paths.chat = obj
-      log('handleObserving', `observing ${this.state.observablePaths.chatPath}`)
+    if (path === this.state.observablePaths.chatsPath) {
+      this.state.paths.chats = obj
+      log('handleObserving', `observing ${this.state.observablePaths.chatsPath}`)
     }
     if (path === this.state.observablePaths.usersPath) {
       this.state.paths.users = obj
@@ -364,7 +364,7 @@ export default class DiscoPeer {
       this.handleAnnounces(node, valu, key)
     }
     // global chat (TODO: remove this. )
-    if (opath === this.state.observablePaths.chatPath) {
+    if (opath === this.state.observablePaths.chatsPath) {
       this.handleChats(node, valu, key)
     }
     // user friends. observed to receive friend requests
@@ -380,45 +380,74 @@ export default class DiscoPeer {
   userList() {}
 
   //
-  chatWith ( friend: any, newMessage: any ) {
-    const friendFunc = (k, fb, msg) => {
-      fb // friends/friendhid/chats/xxxxx
-      .get('chats')
-      .get(k)
-      .get('messages')
-      .set({
-        username: this.state.auth.username,
-        hid: this.state.auth.hid,
-        timestamp: Date.now(),
-        status: 'unread',
-        message: msg
-      })
-    }
-    Promise p = new Promise((resolve, reject) => {
-      const friendBase = this.state.paths.friends.get(friend)   // friends/friendhid
-      log('chatWith', `${newMessage}`)
-      if (!this.state.paths.chat) {
-        return
+  chatWith ( friend: any, newMessage: any, callback ) {
+
+    const chatsBase = this.state.paths.chatsPath
+    const friendBase = this.state.paths.friends.get(friend)
+
+    // look for this friend
+    friendBase.once((v,k) => {
+      // fail if user not in friends
+      if(!v) {
+        throw new Error('cannot find this user in the database')
       }
-      friendBase.once((v:any, k:any) => {
-        if (v) {
-          const friendChats = friendBase.get('chats')
-          friendChats.once((vv, kk) => { // friends/friendhid/chats
-            if(!vv) {
-              friendChats.put({
-                participants: [ this.state.auth.hid, friend ],
-                timestamp: Date.now()  // friends/friendhid/chats/xxxxx
-              }).once((v:any, k:any) => {
-                friendFunc(k, friendBase, newMessage)
-              })
-            } else {
-              const friendChats = friendBase.get('chats')
-              friendFunc(k, friendBase, newMessage)
-            }
-          }) // else this person is not our friend
-        }
+      // fail if user friend not confirmed
+      if(v.status !== 'friend') {
+        throw new Error('This person has not yet confirmed you as a friend')
+      }
+      // create a chat session
+      const chatSession = {
+        participants: 0,
+        messages: 0,
+        timestamp: Date.now()
+      }
+      chatsBase
+      .set(chatSession)
+      .once((vv: any, kk: any) => {
+        // add myself and friend as participants
+        chatsBase
+        .get(kk)
+        .get('participants')
+        .set(friend)
+        .set(this.state.auth.hid)
+        .back(1)
+        // add my message to the chat session
+        .get('messagees')
+        .set({
+          from: this.state.auth.hid,
+          message: newMessage,
+          timestamp: Date.now()
+        })
+        // get a reference to the chat session
+        const theSession = chatsBase.get(kk)
+        // store the session ref in my
+        // user / chats / friends path
+        this.state.paths.user.chats
+        .get(friend)
+        .put(theSession)
+        .once((vvv: any, kkk: any) => {
+          // create a chat request notification and assign the ref
+          // to it and send the whole thing to our friend
+          this.gun
+          .get(`${this.state.rootNode}/users/${friend}/incoming`)
+          .set({
+            type: 'chatrequest',
+            from: this.state.paths.auth.hid,
+            timestamp: Date.now()
+          })
+          .once((vvvv, kkkk) => {
+            this.gun
+            .get(`${this.state.rootNode}/users/${friend}/incoming/${kkkk}`)
+            .get('ref')
+            .put(theSession, () => {
+              if(callback) {
+                callback()
+              }
+            })
+          })
+        })
       })
-    })x
+    })
   }
 
   async searchGroups() {

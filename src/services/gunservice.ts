@@ -6,13 +6,17 @@ import "gun/lib/radix"
 import "gun/lib/radisk"
 import "gun/lib/store"
 import "gun/lib/rindexed"
+import 'gun/lib/open'
+import 'gun/lib/load'
+import 'gun/lib/unset'
+
 import randomstring from "randomstring"
 import path from './path'
 
 const peers = [
   "https://localhost:8765/gun",
   "https://me2peer-gun-relay.herokuapp.com/gun",
-  "http://gunjs.herokuapp.com/gun"
+  // "http://gunjs.herokuapp.com/gun"
 ]
 
 export default class GunService {
