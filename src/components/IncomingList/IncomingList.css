@@ -1,4 +1,4 @@
-.friends-list {
+.incoming-list {
   padding: 0;
   align-items: center;
   background: white;
@@ -7,7 +7,7 @@
   height: 300px;
 }
 
-.friends-list select {
+.incoming-list select {
   width:  100%;
   height: 100%;
 }
@@ -22,7 +22,7 @@ button {
 }
 
 @supports (backdrop-filter: blur(20px)) {
-  .friends-list {
+  .incoming-list {
     border: none;
     background-color: rgba(255, 255, 255, 0.8);
     backdrop-filter: blur(20px);

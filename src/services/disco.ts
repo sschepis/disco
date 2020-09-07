@@ -19,6 +19,15 @@ function dispatch (e:any, p:any = null) {
   document.dispatchEvent(p ? new CustomEvent(e, { detail: p }) : new Event(e))
 }
 
+function user(i) {
+  return {
+    hid: i.hid,
+    username: i.username,
+    handle: i.handle,
+    timestamp: Date.now()
+  }
+}
+
 //
 export default class DiscoPeer {
   state: {
@@ -43,7 +52,7 @@ export default class DiscoPeer {
   userGun: any
   //
   static defaults(that: any) {
-    const rnd = 'aaGldEy8dshR'//randomstring.generate()
+    const rnd = 'zzet2dfgy8hzz'//randomstring.generate()
     var auth = window.localStorage.getItem('auth')
     auth = auth
       ? JSON.parse(auth)
@@ -68,15 +77,16 @@ export default class DiscoPeer {
           friends: null,
           public: null,
           settings: null,
-          chats: null
+          chats: null,
+          incoming: null
         }
       },
-      observablePaths: [
-        `${that.props.rootNode || rnd}/announce`,
-        `${that.props.rootNode || rnd}/chat`,
-        `${that.props.rootNode || rnd}/users`,
-        `${that.props.rootNode || rnd}/groups`,
-      ],
+      observablePaths: {
+        announcePath: `${that.props.rootNode || rnd}/announce`,
+        chatPath: `${that.props.rootNode || rnd}/chat`,
+        usersPath: `${that.props.rootNode || rnd}/users`,
+        groupsPath: `${that.props.rootNode || rnd}/groups`
+      },
       onInit:   (gun: any) => that.handleInit(gun),
       onEmit:   (opath: any, node: any, valu: any, key: any) => that.handleEmit(opath, node, valu, key),
       onObserving: (path: any, obj: any) => that.handleObserving(path, obj),
@@ -89,6 +99,7 @@ export default class DiscoPeer {
   gunService: GunService
   static instance
 
+  // get the peer engine instance
   static getInstance(props) {
     log('getInstance')
     if(!DiscoPeer.instance) {
@@ -97,6 +108,7 @@ export default class DiscoPeer {
     return DiscoPeer.instance
   }
 
+  // generate a unique name
   static uniqueName() {
     return uniqueNamesGenerator({
       dictionaries: [adjectives, colors, animals]
@@ -106,7 +118,7 @@ export default class DiscoPeer {
     .join('')
   }
 
-  //
+  // service constructor = set up dependencies
   constructor(props: any) {
     log('constructor')
     this.props = props
@@ -115,56 +127,68 @@ export default class DiscoPeer {
     this.handleObserving = this.handleObserving.bind(this)
   }
 
-  //
+  // set the state of the service
   setState(state) {
     this.state = Object.assign(this.state, state)
   }
 
   // event
   auth(user: any, auth: any, newUser: any) {
+    const self = this
     log('auth')
     this.userGun = user
-    if (newUser) {
-      delete this.state.auth.create
-      const usersNode = this.gun.path(`${this.state.rootNode}/users`)
-      usersNode.set({
+    const authMethod = newUser ? 'register' : 'login'
+    this[authMethod]((err, hid) => {
+      if(err) throw err
+      self.initUserObservables(hid)
+      self.ready()
+    })
+  }
+
+  register(callback) {
+    log('register', `registering ${this.state.auth.username}`)
+    delete this.state.auth.create
+    const usersNode = this.gun.get(`${this.state.rootNode}/users`)
+    usersNode.set({
+      username: this.state.auth.username,
+      handle: this.state.auth.handle,
+      timestamp: Date.now()
+    })
+    .once((v:any, k:any) => {
+      this.state.auth.hid = k
+      this.gun
+      .get(`${this.state.rootNode}/users/${k}`)
+      .put({
+        hid: this.state.auth.hid,
         username: this.state.auth.username,
         handle: this.state.auth.handle,
         timestamp: Date.now()
       })
-      .once((v:any, k:any) => {
-        this.gun.path(`${this.state.rootNode}/users/${k}`).put({
-          username: this.state.auth.username,
-          handle: this.state.auth.handle,
-          timestamp: Date.now()
-        })
-        window.localStorage.setItem('auth', JSON.stringify(this.state.auth))
-        log('auth', `auth saved for ${this.state.auth.username}`)
-      })
-    } else {
-      this.gun
-        .path(`${this.state.rootNode}/users/${this.state.auth.hid}`)
-        .once((v:any, k:any) => {
-          if(k !== this.state.auth.hid) {
-            throw new Error('hids do not match')
-          }
-        })
-    }
-    this.initUserObservables(this.state.auth.hid)
-    this.ready()
+      window.localStorage.setItem('auth', JSON.stringify(this.state.auth))
+      log('register', `auth saved for ${this.state.auth.username}`)
+      callback(null,k)
+    })
+  }
+
+  login(callback) {
+    this.gun
+    .get(`${this.state.rootNode}/users/${this.state.auth.hid}`)
+    .once((v:any, k:any) => {
+      callback(null,k)
+    })
   }
 
   initUserObservables(hid:any) {
     log('initUserObservables')
-    const uPath = this.state.userPath = `${this.state.rootNode}/users/${hid}`
-    const obs = [
-      `${uPath}/friends`,
-      `${uPath}/public`,
-      `${uPath}/settings`,
-      `${uPath}/chats`
-    ]
-    this.state.observablePaths = this.state.observablePaths.concat(obs)
-    this.gunService.observe(obs)
+    const obs = {
+      userFriendsPath: `${hid}/friends`,
+      userPublicPath: `${hid}/public`,
+      userSettingsPath: `${hid}/settings`,
+      userChatsPath: `${hid}/chats`,
+      userIncomingMessagesPath: `${hid}/incoming`
+    }
+    this.state.observablePaths = Object.assign(this.state.observablePaths, obs)
+    this.gunService.observe(Object.values(obs))
   }
 
   // event
@@ -173,6 +197,7 @@ export default class DiscoPeer {
     if(this.state.events.onReady) {
       this.state.events.onReady()
     }
+    dispatch('ready')
     this.announce()
   }
 
@@ -185,85 +210,59 @@ export default class DiscoPeer {
       handle: this.state.auth.handle,
       timestamp: Date.now()
     }
-    this.gun.path(this.state.observablePaths[0]).set(ann)
+    this.gun.get(this.state.observablePaths.announcePath).set(ann)
     if(this.state.events.onAnnounce) {
       this.state.events.onAnnounce(ann)
     }
+    dispatch('announce', ann)
   }
 
   //
   handleInit(gun: any) {
     log('handleInit')
     this.gun = gun
-    this.gun.path = path.bind(this.gun)
-  }
-
-  //
-  handleAnnounce(v: any) {
-    log('handleAnnounce')
-    dispatch('announce', {
-      hid: v.hid,
-      username: v.username,
-      handle: v.handle,
-      timestamp: v.timestamp
-    })
-    this.state.lastAnnounce = v.timestamp
   }
 
   handleObserving(path: any, obj: any) {
-    if (path === this.state.observablePaths[0]) {
+    if (path === this.state.observablePaths.announcePath) {
       this.state.paths.announce = obj
-      log('handleObserving', `observing ${this.state.observablePaths[0]}`)
+      log('handleObserving', `observing ${this.state.observablePaths.announcePath}`)
     }
-    if (path === this.state.observablePaths[1]) {
+    if (path === this.state.observablePaths.chatPath) {
       this.state.paths.chat = obj
-      log('handleObserving', `observing ${this.state.observablePaths[1]}`)
+      log('handleObserving', `observing ${this.state.observablePaths.chatPath}`)
     }
-    if (path === this.state.observablePaths[2]) {
+    if (path === this.state.observablePaths.usersPath) {
       this.state.paths.users = obj
-      log('handleObserving', `observing ${this.state.observablePaths[2]}`)
+      log('handleObserving', `observing ${this.state.observablePaths.usersPath}`)
     }
-    if (path === this.state.observablePaths[3]) {
+    if (path === this.state.observablePaths.groupsPath) {
       this.state.paths.groups = obj
-      log('handleObserving', `observing ${this.state.observablePaths[3]}`)
+      log('handleObserving', `observing ${this.state.observablePaths.groupsPath}`)
     }
-    if (path === this.state.observablePaths[4]) {
+    if (path === this.state.observablePaths.userFriendsPath) {
       this.state.paths.user.friends = obj
-      log('handleObserving', `observing ${this.state.observablePaths[4]}`)
+      log('handleObserving', `observing ${this.state.observablePaths.userFriendsPath}`)
     }
-    if (path === this.state.observablePaths[5]) {
+    if (path === this.state.observablePaths.userPublicPath) {
       this.state.paths.user.public = obj
-      log('handleObserving', `observing ${this.state.observablePaths[5]}`)
+      log('handleObserving', `observing ${this.state.observablePaths.userPublicPath}`)
     }
-    if (path === this.state.observablePaths[6]) {
+    if (path === this.state.observablePaths.userSettingsPath) {
       this.state.paths.user.settings = obj
-      log('handleObserving', `observing ${this.state.observablePaths[6]}`)
+      log('handleObserving', `observing ${this.state.observablePaths.userSettingsPath}`)
     }
-    if (path === this.state.observablePaths[7]) {
+    if (path === this.state.observablePaths.userChatsPath) {
       this.state.paths.user.chats = obj
-      log('handleObserving', `observing ${this.state.observablePaths[7]}`)
+      log('handleObserving', `observing ${this.state.observablePaths.userChatsPath}`)
+    }
+    if (path === this.state.observablePaths.userIncomingMessagesPath) {
+      this.state.paths.user.incoming = obj
+      log('handleObserving', `observing ${this.state.observablePaths.userIncomingMessagesPath}`)
     }
     if(this.state.events.onObserving) {
       this.state.events.onObserving(path)
     }
-  }
-
-  //
-  handleAnnounceInit(v: any) {
-    log('handleAnnounceInit')
-    Object.values(v).map((ee: any) => {
-      this.gun
-        .path(ee['#'])
-        .once((vv: any, kk: any) => {
-        dispatch('announce', {
-          hid: v.hid,
-          username: v.username,
-          handle: v.handle,
-          timestamp: v.timestamp
-        })
-        this.state.lastChat = v.timestamp
-      })
-    })
   }
 
   //
@@ -275,6 +274,13 @@ export default class DiscoPeer {
         this.handleAnnounce(v)
       }
     })
+  }
+
+  //
+  handleAnnounce(v: any) {
+    log('handleAnnounce')
+    dispatch('announce',user(v))
+    this.state.lastAnnounce = v.timestamp
   }
 
   //
@@ -319,18 +325,54 @@ export default class DiscoPeer {
   }
 
   //
+  handleIncomings(node: any, valu: any, key: any) {
+    log('handleIncomings')
+    node.map().once((v: any, k: any) => {
+      v.hid = k
+      this.handleIncoming(node, v, k)
+    })
+  }
+
+  //
+  handleIncoming(node: any, valu: any, key: any) {
+    log('handleIncoming', valu)
+    if(valu && valu.type === 'friendrequestapproved' && !valu.processed) {
+      const friendBase = this.state.paths.user.friends.get(valu.from)
+      friendBase
+      .once((v:any, k:any)=> {
+        if(v) {
+          v.status = 'friend'
+          friendBase
+          .put(v)
+          .once((vv: any, kk:any) => {
+            log(`now friends with ${valu.from}`)
+            valu.processed = true
+            this.state.paths.user.incoming
+            .get(key)
+            .put(valu)
+            .once(() => dispatch('friendapproved', valu.from))
+          })
+        }
+      })
+    }
+  }
+
+  //
   handleEmit(opath: any, node: any, valu: any, key: any) {
     // announce
-    if (opath === this.state.observablePaths[0]) {
+    if (opath === this.state.observablePaths.announcePath) {
       this.handleAnnounces(node, valu, key)
     }
     // global chat (TODO: remove this. )
-    if (opath === this.state.observablePaths[1]) {
+    if (opath === this.state.observablePaths.chatPath) {
       this.handleChats(node, valu, key)
     }
     // user friends. observed to receive friend requests
-    if (opath === this.state.observablePaths[4]) {
+    if (opath === this.state.observablePaths.userFriendsPath) {
       this.handleFriends(node, valu, key)
+    }
+    if (opath === this.state.observablePaths.userIncomingMessagesPath) {
+      this.handleIncomings(node, valu, key)
     }
   }
 
@@ -387,24 +429,6 @@ export default class DiscoPeer {
 
   }
 
-  addFriend(friend, callback) {
-    log('addFriend', `${friend}`)
-    const friendBase = this.state.paths.user.friends
-    friendBase.get(friend).once((v) => {
-      if(v) { return callback() }
-
-      friendBase.get(friend).put({
-        timestamp: Date.now(),
-        status: 'pending'
-      }).once((vv, kk) => {
-        const participantsBase = friendBase.get(friend).get('participants')
-        [this.state.auth.hid, friend].forEach((e) => participantsBase.set(e))
-      })
-
-      if(callback) { callback() }
-    })
-  }
-
   getUsers(callback) {
     const userBase = this.state.paths.users
     userBase.once((v: any, k: any) => {
@@ -428,15 +452,66 @@ export default class DiscoPeer {
     })
   }
 
-  approveFriendRequest(friend, callback) {
-    const friendBase = this.state.paths.user.friends.get(friend)
-    friendBase.once((v, k) => {
-      if(v && v.status === 'pending') {
-        v.status = 'friends'
-        friendBase.put(v).on(() => {
-          if(callback) { callback() }
+  addFriend(friend, callback) {
+    log('addFriend', friend)
+    const friendBase = this.state.paths.user.friends
+    friendBase
+    .get(friend)
+    .once((v) => {
+      if(v) { return callback(new Error(`${friend} is already in friends list`)) }
+      friendBase
+      .get(friend)
+      .put({
+        timestamp: Date.now(),
+        status: 'pending'
+      })
+      .once((vv, kk) => {
+        vv.hid = kk
+        this.gun
+        .get(`${this.state.rootNode}/users/${friend}/incoming`)
+        .set({
+          type: 'friendrequest',
+          from: this.state.auth.hid,
+          timestamp: Date.now()
         })
+        .once(() => {
+          if(callback) {
+            callback(null, vv)
+          }
+        })
+      })
+    })
+  }
+
+  approveFriend(friend, callback) {
+    const friendBase = this.state.paths.user.friends
+    friendBase
+    .get(friend)
+    .once((v, k) => {
+      if(v) {
+        throw new Error(`already friends with ${friend}`)
       }
+      friendBase
+      .get(friend)
+      .put({
+        timestamp: Date.now(),
+        status: 'friend'
+      })
+      .once(() => {
+        this.gun
+        .get(`${this.state.rootNode}/users/${friend}/incoming`)
+        .set({
+          type: 'friendrequestapproved',
+          from: this.state.auth.hid,
+          timestamp: Date.now()
+        })
+        .once(() => {
+          if(callback) {
+            dispatch('friendapproved', friend)
+            callback()
+          }
+        })
+      })
     })
   }
 

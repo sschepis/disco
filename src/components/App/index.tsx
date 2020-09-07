@@ -2,6 +2,7 @@ import React from 'react'
 import UserList from '../UserList';
 import AnnounceList from '../AnnounceList';
 import FriendsList from '../FriendsList';
+import IncomingList from '../IncomingList';
 import DiscoPeer from '../../services/disco'
 import { Container, Row, Col } from 'react-bootstrap'
 
@@ -22,18 +23,15 @@ export default class App extends React.Component {
   constructor(props: any) {
     super(props)
     this.state = Object.assign(App.defaults(this), props)
-
-    this.discoAnnounce = this.discoAnnounce.bind(this)
-    this.discoObserving = this.discoObserving.bind(this)
-    this.discoReady = this.discoReady.bind(this)
     this.addFriend = this.addFriend.bind(this)
+    this.confirmFriend = this.confirmFriend.bind(this)
 
     this.state.disco = window.disco = new DiscoPeer({
-      rootNode: '76jkefds',
+      rootNode: '76jjjlfdwkefds',
       events: {
-        onReady: () => this.discoReady(),
-        onObserving: (path) => this.discoObserving(path),
-        onAnnounce: () => this.discoAnnounce()
+        onReady: () => {},
+        onObserving: (path) => {},
+        onAnnounce: () => {}
       }
     })
   }
@@ -44,23 +42,23 @@ export default class App extends React.Component {
     })
   }
 
-  userSelected(user) {
+  userSelected(user:any) {
     this.setState({selectedUser: user})
   }
 
-  discoReady() {
-    dispatch('disco_ready')
-  }
-
-  discoObserving(path:any) {}
-  discoAnnounce() {}
-  addFriend(e) {
-    window.disco.addFriend(this.state.selectedUser, () {
-      console.log('addFriend', 'friend added')
+  addFriend(e:any) {
+    window.disco.addFriend(this.state.selectedUser, () => {
+      console.log('addFriend', `friend added: ${this.state.selectedUser}`)
     })
   }
+
+  confirmFriend() {
+    window.disco.approveFriend(this.state.selectedUser, () => {
+      console.log('approveFriend', `friend added: ${this.state.selectedUser}`)
+    })
+  }
+
   removeFriend() {}
-  confirmFriend() {}
 
   render() {
     var user = window.disco.state.auth ? window.disco.state.auth.handle: 'nobody'
@@ -73,8 +71,14 @@ export default class App extends React.Component {
         <Row>
           <Col><h2>Users</h2><UserList></UserList></Col>
           <Col><h2>Announces</h2><AnnounceList /></Col>
-          <Col><h2>Confirmed Friends</h2><FriendsList /></Col>
-          {/* <Col><h2>Pending Friends</h2><FriendsList mode={'pending'}/></Col> */}
+          <Col><h2>Confirmed Friends</h2><FriendsList mode={'friend'} /></Col>
+          <Col><h2>Pending Friends</h2><FriendsList mode={'pending'}/></Col>
+        </Row>
+        <Row>
+          <Col><h2>Incoming Notifies</h2><IncomingList></IncomingList></Col>
+          <Col></Col>
+          <Col></Col>
+          <Col></Col>
         </Row>
         <Row>
           <Col><div className={'anntext'}>With <span className='anntext'>{this.state.selectedUser}</span></div></Col>

@@ -53,29 +53,22 @@ export default class GunService {
           this.state.onAuth(this.state.user, this.state.auth)
         }
       })
-      this.observe(this.state.observablePaths)
+      this.observe(Object.values(this.state.observablePaths))
     }
   }
 
   observe(paths: any) {
-    const ops = paths
-    ops.forEach((opath: any) => {
-      const pathParts = opath
-        .split("/")
-        .filter((e: any) => e)
-        .map((e: any) => e.trim())
-      const gun = this.userGun
-      var node = gun
-      pathParts.forEach((p: any) => (node = node.get(p)))
-      node.on((valu: any, key: any) => {
+    paths.forEach((opath: any) => {
+      const gunPath = this.gun.get(opath)
+      gunPath.on((valu: any, key: any) => {
         if (this.state.onEmit) {
-          this.state.onEmit(opath, node, valu, key)
+          this.state.onEmit(opath, gunPath, valu, key)
         }
       })
       if (this.state.onObserving) {
-        this.state.onObserving(opath, node)
+        this.state.onObserving(opath, gunPath)
       }
-      this.state.observedNodes[opath] = node
+      this.state.observedNodes[opath] = gunPath
     })
   }
 

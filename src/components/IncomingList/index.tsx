@@ -1,15 +1,11 @@
 import React from 'react';
-import './FriendsList.css';
+import './IncomingList.css';
 
-export default class FriendsList extends React.Component {
+export default class IncomingList extends React.Component {
 
-  props: {
-    mode: any
-  }
-
-  static defaultState(that: FriendsList) {
+  static defaultState(that: IncomingList) {
     return {
-      friends: [],
+      incoming: [],
       ready: false
     }
   }
@@ -18,7 +14,7 @@ export default class FriendsList extends React.Component {
   constructor(props: any) {
     super(props)
     this.state = Object.assign(
-      FriendsList.defaultState(this),
+      IncomingList.defaultState(this),
       props
     )
     this.handleReady = this.handleReady.bind(this)
@@ -28,33 +24,30 @@ export default class FriendsList extends React.Component {
 
   handleReady() {
     this.state.ready = true
-    const friends = []
-    this.listenForMoreFriends()
+    const incoming = []
+    this.listenForIncoming()
   }
 
-  listenForMoreFriends() {
-    window.disco.state.paths.user.friends
+  listenForIncoming() {
+    window.disco.state.paths.user.incoming
     .map()
     .on((v:any, k:any) => {
-      if(this.props.mode) {
-        if(this.props.mode !== v.status) {
-          return
-        }
-      }
+      if(v.processed) { return }
       window.disco.state.paths.users
-      .get(k)
+      .get(v.from)
       .once((vv, kk) => {
-        const friends = this.state.friends || []
-        friends.filter((e) => e.hid !== kk)
-        friends.push({
+        const incoming = this.state.incoming || []
+        incoming.push({
+          type: v.type,
           hid: kk,
           username: vv.username,
           handle: vv.handle,
           timestamp: vv.timestamp
         })
-        friends.sort((a, b) => a > b)
-        this.setState({friends})
+        incoming.sort((a, b) => a > b)
+        this.setState({incoming})
       })
+
     })
   }
 
@@ -69,10 +62,10 @@ export default class FriendsList extends React.Component {
 
   render() {
     return (
-      <div className="friends-list">
+      <div className="incoming-list">
         <select size={5} onChange={this.handleChange}>
-          {this.state.friends.map(function(friend, index) {
-            return <option key={index} value={friend.hid}>{friend.handle}</option>;
+          {this.state.incoming.map(function(incoming, index) {
+            return <option key={index} value={incoming.hid}>{incoming.type} - {incoming.handle}</option>;
           })}
         </select>
       </div>
