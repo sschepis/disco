@@ -16,7 +16,7 @@ import path from './path'
 const peers = [
   "https://localhost:8765/gun",
   "https://me2peer-gun-relay.herokuapp.com/gun",
-  // "http://gunjs.herokuapp.com/gun"
+  //"http://gunjs.herokuapp.com/gun"
 ]
 
 export default class GunService {

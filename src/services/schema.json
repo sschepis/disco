@@ -1,0 +1,237 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "$id": "http://me2peer.com/me2peer.json",
+    "type": "object",
+    "required": [],
+    "properties": {
+        "cid": {
+            "$id": "#/properties/cid",
+            "type": "string",
+            "pattern": "(Q\\w{44,46})"
+        },
+        "timestamp": {
+            "$id": "#/properties/timestamp",
+            "type": "integer",
+            "default": 1,
+            "minimum": 1,
+            "maximum": 2145916700000
+        },
+        "name": {
+            "$id": "#/properties/name",
+            "type": "string",
+            "maxLength": 16
+        },
+        "textValue": {
+            "$id": "#/properties/textValue",
+            "type": "string",
+            "maxLength": 255
+        },
+        "reference": {
+            "$id": "#/properties/reference",
+            "type": "object",
+            "required": [],
+            "properties": {
+                "cid": {
+                    "$ref": "#/properties/cid"
+                }
+            }
+        },
+        "peer": {
+            "$id": "#/properties/peer",
+            "type": "object",
+            "required": [],
+            "properties": {
+                "id": {
+                    "$ref": "#/properties/cid"
+                },
+                "privKey": {
+                    "$ref": "#/properties/textValue"
+                },
+                "pubKey": {
+                    "$ref": "#/properties/textValue"
+                }
+            }
+        },
+        "user": {
+            "$id": "#/properties/user",
+            "type": "object",
+            "required": [],
+            "properties": {
+                "cid": {
+                    "$ref": "#/properties/cid"
+                },
+                "peer": {
+                    "$ref": "#/properties/peer"
+                },
+                "timestamp": {
+                    "$ref": "#/properties/timestamp"
+                },
+                "name": {
+                    "$ref": "#/properties/textValue"
+                },
+                "alias": {
+                    "$id": "#/properties/user/properties/alias",
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 32
+                }
+            }
+        },
+        "content": {
+            "$id": "#/properties/content",
+            "type": "object",
+            "required": [
+            ],
+            "properties": {
+                "cid": {
+                    "$ref": "#/properties/cid"
+                },
+                "timestamp": {
+                    "$ref": "#/properties/timestamp"
+                },
+                "value": {
+                    "$id": "#/properties/content/properties/value",
+                    "type": "string",
+                    "maxLength": 65535
+                },
+                "link": {
+                    "$id": "#/properties/content/properties/link",
+                    "type": "string"
+                }
+            }
+        },
+        "comment": {
+            "$id": "#/properties/comment",
+            "type": "object",
+            "required": [],
+            "properties": {
+                "cid": {
+                    "$ref": "#/properties/cid"
+                },
+                "post": {
+                    "$ref": "#/properties/cid"
+                },
+                "timestamp": {
+                    "$ref": "#/properties/timestamp"
+                },
+                "user": {
+                    "$ref": "#/properties/user"
+                },
+                "content": {
+                    "$ref": "#/properties/content"
+                }
+            }
+        },
+        "post": {
+            "$id": "#/properties/post",
+            "type": "object",
+            "required": [],
+            "properties": {
+                "cid": {
+                    "$ref": "#/properties/cid"
+                },
+                "timestamp": {
+                    "$ref": "#/properties/timestamp"
+                },
+                "user": {
+                    "$ref": "#/properties/user"
+                },
+                "title": {
+                    "$ref": "#/properties/textValue"
+                },
+                "type": {
+                    "$id": "#/properties/post/properties/type",
+                    "type": "string",
+                    "enum": ["link", "post", "media"]
+                },
+                "summary": {
+                    "$ref": "#/properties/textValue"
+                },
+                "groups": {
+                    "$id": "#/properties/post/properties/groups",
+                    "type": "array",
+                    "items": {
+                        "$id": "#/properties/name"
+                    }
+                },
+                "tags": {
+                    "$id": "#/properties/post/properties/tags",
+                    "type": "array",
+                    "items": {
+                        "$id": "#/properties/name"
+                    }
+                },
+                "comments": {
+                    "$id": "#/properties/post/properties/comments",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/properties/comment"
+                    }
+                },
+                "content": {
+                    "$ref": "#/properties/content"
+                }
+            }
+        },
+        "group": {
+            "$id": "#/properties/group",
+            "type": "object",
+            "required": [],
+            "properties": {
+                "cid": {
+                    "$ref": "#/properties/cid"
+                },
+                "timestamp": {
+                    "$ref": "#/properties/timestamp"
+                },
+                "user": {
+                    "$ref": "#/properties/user"
+                },
+                "name": {
+                    "$ref": "#/properties/name"
+                },
+                "summary": {
+                    "$ref": "#/properties/textValue"
+                },
+                "membership": {
+                    "$id": "#/properties/group/properties/membership",
+                    "type": "string",
+                    "enum": ["invite", "request", "open", "closed"]
+                },
+                "visibility": {
+                    "$id": "#/properties/group/properties/visibility",
+                    "type": "string",
+                    "enum": ["closed", "public"]
+                },
+                "announcements": {
+                    "$id": "#/properties/group/properties/announcements",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/properties/content"
+                    }
+                },
+                "members": {
+                    "$id": "#/properties/group/properties/members",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/properties/user"
+                    }
+                },
+                "posts": {
+                    "$id": "#/properties/group/properties/posts",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/properties/post"
+                    }
+                },
+                "mods": {
+                    "$id": "#/properties/group/properties/mods",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/properties/user"
+                    }
+                }
+            }
+        }
+    }
+}

@@ -52,7 +52,7 @@ export default class DiscoPeer {
   userGun: any
   //
   static defaults(that: any) {
-    const rnd = 'zzet2dfgy8hzz'//randomstring.generate()
+    const rnd = 'flnuixahktnuf33333nKBFBs'//randomstring.generate()
     var auth = window.localStorage.getItem('auth')
     auth = auth
       ? JSON.parse(auth)
@@ -75,7 +75,7 @@ export default class DiscoPeer {
         groups: null,
         user: {
           friends: null,
-          public: null,
+          feed: null,
           settings: null,
           chats: null,
           incoming: null
@@ -182,7 +182,7 @@ export default class DiscoPeer {
     log('initUserObservables')
     const obs = {
       userFriendsPath: `${hid}/friends`,
-      userPublicPath: `${hid}/public`,
+      userFeedPath: `${hid}/feed`,
       userSettingsPath: `${hid}/settings`,
       userChatsPath: `${hid}/chats`,
       userIncomingMessagesPath: `${hid}/incoming`
@@ -244,9 +244,9 @@ export default class DiscoPeer {
       this.state.paths.user.friends = obj
       log('handleObserving', `observing ${this.state.observablePaths.userFriendsPath}`)
     }
-    if (path === this.state.observablePaths.userPublicPath) {
-      this.state.paths.user.public = obj
-      log('handleObserving', `observing ${this.state.observablePaths.userPublicPath}`)
+    if (path === this.state.observablePaths.userFeedPath) {
+      this.state.paths.user.feed = obj
+      log('handleObserving', `observing ${this.state.observablePaths.userFeedPath}`)
     }
     if (path === this.state.observablePaths.userSettingsPath) {
       this.state.paths.user.settings = obj
@@ -328,6 +328,7 @@ export default class DiscoPeer {
   handleIncomings(node: any, valu: any, key: any) {
     log('handleIncomings')
     node.map().once((v: any, k: any) => {
+      if (!v) { return }
       v.hid = k
       this.handleIncoming(node, v, k)
     })
@@ -335,26 +336,63 @@ export default class DiscoPeer {
 
   //
   handleIncoming(node: any, valu: any, key: any) {
+    if(!valu || (valu && !valu.type)) { return }
     log('handleIncoming', valu)
-    if(valu && valu.type === 'friendrequestapproved' && !valu.processed) {
-      const friendBase = this.state.paths.user.friends.get(valu.from)
-      friendBase
-      .once((v:any, k:any)=> {
-        if(v) {
-          v.status = 'friend'
-          friendBase
-          .put(v)
-          .once((vv: any, kk:any) => {
-            log(`now friends with ${valu.from}`)
-            valu.processed = true
-            this.state.paths.user.incoming
-            .get(key)
-            .put(valu)
-            .once(() => dispatch('friendapproved', valu.from))
-          })
-        }
-      })
+    if(valu.type === 'friendrequestapproved') {
+      this.handleApproveFriendRequest(node, valu, key)
     }
+    else if(valu.type === 'chatrequest') {
+      this.handleChatRequest(node, valu, key)
+    }
+  }
+
+  handleApproveFriendRequest(node: any, valu: any, key: any) {
+    const friendBase = this.state.paths.user.friends.get(valu.from)
+    friendBase
+    .once((v:any, k:any)=> {
+      if(v) {
+        v.status = 'friend'
+        friendBase
+        .put(v)
+        .once((vv: any, kk:any) => {
+          log(`now friends with ${valu.from}`)
+          this.state.paths.user.incoming
+          .unset(valu, () => {
+            dispatch('friendapproved', valu.from)
+          })
+        })
+      }
+    })
+  }
+
+  handleChatRequest(node: any, valu: any, key: any) {
+    const friendBase = this.state.paths.user.friends.get(valu.from)
+    const chatBase = this.state.paths.user.chats.get(valu.from)
+
+    // try and see if this chat request is from a friend
+    friendBase
+    .once((v:any, k:any)=> {
+      // if a friend is found
+      if(v) {
+        // look up the ref of the incoming message
+        // its the chat session ref we'll use to chat
+        if(!valu.chatSessionKey) {
+          throw new Error('No chat session key attached to message')
+        }
+        // store the chat session in our chats list
+        chatBase
+        .put(valu.chatSessionKey)
+        .once(() => {
+          // and finally, remove the incoming message
+          this.state.paths.user.incoming
+          .unset(valu, () => {
+            log(`incoming chat from ${valu.from}`)
+            dispatch('chatsession', valu.from)
+            // TODO maye look up and return the user
+          })
+        })
+      }
+    })
   }
 
   //
@@ -382,8 +420,8 @@ export default class DiscoPeer {
   //
   chatWith ( friend: any, newMessage: any, callback ) {
 
-    const chatsBase = this.state.paths.chatsPath
-    const friendBase = this.state.paths.friends.get(friend)
+    const chatsBase = this.state.paths.chats
+    const friendBase = this.state.paths.user.friends.get(friend)
 
     // look for this friend
     friendBase.once((v,k) => {
@@ -395,55 +433,51 @@ export default class DiscoPeer {
       if(v.status !== 'friend') {
         throw new Error('This person has not yet confirmed you as a friend')
       }
+
+      // TODO: look for an existing session b4 making a new 1
       // create a chat session
       const chatSession = {
-        participants: 0,
-        messages: 0,
         timestamp: Date.now()
       }
       chatsBase
       .set(chatSession)
-      .once((vv: any, kk: any) => {
+      .once((vv: any, chatSessionKey: any) => {
         // add myself and friend as participants
-        chatsBase
-        .get(kk)
+        const theSession = chatsBase.get(chatSessionKey)
+        // list the participants
+        theSession
         .get('participants')
         .set(friend)
         .set(this.state.auth.hid)
-        .back(1)
-        // add my message to the chat session
-        .get('messagees')
+        // add the initial message
+        theSession
+        .get('messages')
         .set({
           from: this.state.auth.hid,
           message: newMessage,
           timestamp: Date.now()
         })
-        // get a reference to the chat session
-        const theSession = chatsBase.get(kk)
+        // set the session key
+        theSession
+        .get('sessionKey')
+        .set(chatSessionKey)
+
         // store the session ref in my
         // user / chats / friends path
         this.state.paths.user.chats
         .get(friend)
-        .put(theSession)
-        .once((vvv: any, kkk: any) => {
+        .put(chatSessionKey, () => {
           // create a chat request notification and assign the ref
           // to it and send the whole thing to our friend
           this.gun
           .get(`${this.state.rootNode}/users/${friend}/incoming`)
           .set({
             type: 'chatrequest',
-            from: this.state.paths.auth.hid,
+            from: this.state.auth.hid,
+            chatSessionKey,
             timestamp: Date.now()
-          })
-          .once((vvvv, kkkk) => {
-            this.gun
-            .get(`${this.state.rootNode}/users/${friend}/incoming/${kkkk}`)
-            .get('ref')
-            .put(theSession, () => {
-              if(callback) {
-                callback()
-              }
-            })
+          }, () => {
+            if(callback) { callback() }
           })
         })
       })
@@ -517,9 +551,9 @@ export default class DiscoPeer {
     friendBase
     .get(friend)
     .once((v, k) => {
-      if(v) {
-        throw new Error(`already friends with ${friend}`)
-      }
+      // if(v) {
+      //   throw new Error(`already friends with ${friend}`)
+      // }
       friendBase
       .get(friend)
       .put({
@@ -548,28 +582,129 @@ export default class DiscoPeer {
 
   }
 
-  async createGroup(group) {
+  createGroup(group) {
+    this.state.paths.groups
+    .set(group)
+    .once((v:any, k:any) => {
 
+    })
   }
 
   async deleteGroup(group) {
 
   }
 
-  async joinGroup(group) {
-
+  async joinGroup(group, callback) {
+    const targetGroup = this.state.paths.groups.get(group)
+    targetGroup.once((groupO:any, groupHid:any) => {
+      if(!groupO) {
+        throw new Error('group does not exist')
+      }
+      // TODO: add all the validation rules here
+      const gm = targetGroup.get('members').get(this.state.auth.hid)
+      gm.once((memberO, memberId) => {
+        if(memberO) {
+          throw new Error('already a member of this group')
+        }
+        gm.put(this.state.auth.hid, () => {
+          dispatch('joinedgroup', group)
+          if(callback) {
+            callback(null, this.state.auth.hid)
+          }
+        })
+      })
+    })
   }
 
-  async leaveGroup(group) {
-
+  async leaveGroup(group, callback) {
+    const targetGroup = this.state.paths.groups.get(group)
+    targetGroup.once((groupO:any, groupHid:any) => {
+      if(!groupO) {
+        const e = new Error('group does not exist')
+        if(callback) { return callback(e) }
+        else { throw e }
+      }
+      // TODO: add all the validation rules here
+      const gm = targetGroup.get('members').get(this.state.auth.hid)
+      gm.once((memberO, memberId) => {
+        if(memberO) {
+          throw new Error('not a member of this group')
+        }
+        targetGroup.get('members').unset(this.state.auth.hid, () => {
+          dispatch('leftgroup', group)
+          if(callback) {
+            callback(null, this.state.auth.hid)
+          }
+        })
+      })
+    })
   }
 
-  async postToGroup(group) {
-
+  async updateGroupSettings(group, settings, callback) {
+    const targetGroup = this.state.paths.groups.get(group)
+    targetGroup.once((groupO:any, groupHid:any) => {
+      if(!groupO) {
+        const e = new Error('group does not exist')
+        if(callback) { return callback(e) }
+        else { throw e }
+      }
+      if(groupO.owner !== this.state.auth.hid){
+        const e = new Error('user is not group owner')
+        if(callback) { return callback(e) }
+        else { throw e }
+      }
+      // TODO: add all the validation rules here
+      targetGroup.put(settings, () => {
+        dispatch('updatedgroup', group)
+        if(callback) {
+          callback(null, group)
+        }
+      })
+    })
   }
 
-  async postToWall(group) {
+  async postToGroup(group, post, callback) {
+    const targetGroup = this.state.paths.groups.get(group)
+    targetGroup.once((groupO:any, groupHid:any) => {
+      if(!groupO) {
+        const e = new Error('group does not exist')
+        if(callback) { return callback(e) }
+        else { throw e }
+      }
+      // TODO: add all the validation rules here
+      const gm = targetGroup.get('members').get(this.state.auth.hid)
+      gm.once((memberO, memberId) => {
+        if(memberO) {
+          throw new Error('not a member of this group')
+        }
+        targetGroup.get('posts')
+        .set(post)
+        .once((postO, postKey) => {
+          post.hid = postKey
+          dispatch('postedtogroup', { group, post } )
+          if(callback) {
+            callback(null, this.state.auth.hid)
+          }
+        })
+      })
+    })
+  }
 
+  async postToFeed(post, callback) {
+    const targetFeed = this.state.paths.user.feed
+    targetFeed.set(post)
+    .once((postO:any, postHid:any) => {
+      if(!postO) {
+        const e = new Error('group does not exist')
+        if(callback) { return callback(e) }
+        else { throw e }
+      }
+      post.hid = postHid
+      dispatch('postedtfeed', { group, post } )
+      if(callback) {
+        callback(null, this.state.auth.hid)
+      }
+    })
   }
 
   async postToPublic(group) {

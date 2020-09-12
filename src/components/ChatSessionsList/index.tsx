@@ -1,11 +1,11 @@
 import React from 'react';
-import './IncomingList.css';
+import './ChatSessionsList.css';
 
-export default class IncomingList extends React.Component {
+export default class ChatSessionsList extends React.Component {
 
-  static defaultState(that: IncomingList) {
+  static defaultState(that: ChatSessionsList) {
     return {
-      incoming: [],
+      chats: [],
       ready: false
     }
   }
@@ -14,7 +14,7 @@ export default class IncomingList extends React.Component {
   constructor(props: any) {
     super(props)
     this.state = Object.assign(
-      IncomingList.defaultState(this),
+      ChatSessionsList.defaultState(this),
       props
     )
     this.handleReady = this.handleReady.bind(this)
@@ -24,35 +24,34 @@ export default class IncomingList extends React.Component {
 
   handleReady() {
     this.state.ready = true
-    const incoming = []
-    this.listenForIncoming()
+    this.listenForChats()
   }
 
-  listenForIncoming() {
-    window.disco.state.paths.user.incoming
+  listenForChats() {
+    window.disco.state.paths.user.chats
     .map()
-    .once((v:any, k:any) => {
-      if(!v) { return }
+    .on((v:any, k:any) => {
+      const theChatSession = v
       window.disco.state.paths.users
-      .get(v.from)
+      .get(k) // elements in chat keyed by user id
       .once((vv, kk) => {
-        const incoming = this.state.incoming || []
-        incoming.push({
-          type: v.type,
+        const chats = this.state.chats || []
+        chats.push({
           hid: kk,
           username: vv.username,
           handle: vv.handle,
-          timestamp: vv.timestamp
+          timestamp: vv.timestamp,
+          session: theChatSession
         })
-        incoming.sort((a, b) => a > b)
-        this.setState({incoming})
+        chats.sort((a, b) => a.timestamp > b.timestamp)
+        this.setState({chats})
       })
     })
   }
 
   handleChange(event) {
     this.setState({hid: event.target.value});
-    this.dispatch('user_selected', event.target.value)
+    this.dispatch('chat_session_selected', event.target.value)
   }
 
   dispatch (e:any, p:any = null) {
@@ -61,10 +60,10 @@ export default class IncomingList extends React.Component {
 
   render() {
     return (
-      <div className="incoming-list">
+      <div className="chat-session-list">
         <select size={5} onChange={this.handleChange}>
-          {this.state.incoming.map(function(incoming, index) {
-            return <option key={index} value={incoming.hid}>{incoming.type} - {incoming.handle}</option>;
+          {this.state.chats.map(function(chat, index) {
+            return <option key={index} value={chat.hid}>{chat.handle}</option>;
           })}
         </select>
       </div>

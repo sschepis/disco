@@ -44,6 +44,9 @@ export default class FriendsList extends React.Component {
       window.disco.state.paths.users
       .get(k)
       .once((vv, kk) => {
+        if(!vv) {
+          return
+        }
         const friends = this.state.friends || []
         friends.filter((e) => e.hid !== kk)
         friends.push({

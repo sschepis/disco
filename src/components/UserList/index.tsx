@@ -30,7 +30,7 @@ export default class UserList extends React.Component {
   listenForUsers() {
     window.disco.state.paths.users
     .map()
-    .on((v: any, k: any) => {
+    .once((v: any, k: any) => {
       if(!v.username) { return }
       const users = this.state.users || []
       users.filter((e) => e.hid !== k)
@@ -40,7 +40,7 @@ export default class UserList extends React.Component {
         handle: v.handle,
         timestamp: v.timestamp
       })
-      users.sort((a: any, b: any) => a > b)
+      users.sort((a: any, b: any) => a.timestamp > b.timestamp)
       this.setState({users})
     })
   }
